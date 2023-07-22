@@ -13,6 +13,9 @@ using namespace std;
   #error "Incorrect buffer size"
 #endif
 
+uint8_t TestCount = 0;
+uint8_t TestPassed = 0;
+
 typedef struct {
   size_t first;
   size_t last;
@@ -33,6 +36,8 @@ void TestCase_03(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_04(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_05(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_06(CircularBuffer* pBufA, CircularBuffer* pBufB);
+void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB);
+void PrintTestStatus();
 // ***********************************************************
 
 // ClearBuf очищает буфер (может также использоваться для инициализации структуры CircularBuffer)
@@ -189,7 +194,7 @@ CircularBuffer bufferA;
 CircularBuffer bufferB;
 
 int main(){
-        ClearBuf(&bufferA);
+        /*ClearBuf(&bufferA);
         ClearBuf(&bufferB);
 
         WriteByte(&bufferA, 4);
@@ -240,17 +245,37 @@ int main(){
         printf("IsFull B: %s\n", IsFull(&bufferB) ? "true" : "false");
 
         printf("GetDataCount A: %zu\n", GetDataCount(&bufferA));
-        printf("GetDataCount B: %zu\n", GetDataCount(&bufferB));
+        printf("GetDataCount B: %zu\n", GetDataCount(&bufferB));*/
 
         //
-        TestCase_01(&bufferA, &bufferB);
+        // TestCase_01(&bufferA, &bufferB);
         TestCase_02(&bufferA, &bufferA);
         TestCase_03(&bufferA, &bufferB);
         TestCase_04(&bufferA, &bufferB);
         TestCase_05(&bufferA, &bufferB);
         TestCase_06(&bufferA, &bufferB);
+        TestCase_07(&bufferA, &bufferB);
+
+        PrintTestStatus();
 
   return 0;
+}
+
+void PrintTestStatus()
+{ 
+  printf("\n***********************************\n"); 
+  printf("Tests count: %u \n", TestCount);
+  printf("Tests PASS : %u \n", TestPassed);
+  printf("Tests FAIL : %u \n", TestCount - TestPassed);
+  printf("***********************************\n"); 
+  if ((TestCount > 0) and (TestCount == TestPassed))
+  {
+    printf("All tests: PASS\n");
+  }
+  else
+  {
+    printf("All tests: FAIL\n");
+  }  
 }
 
 void TestCase_01(CircularBuffer* pBufA, CircularBuffer* pBufB)
@@ -287,7 +312,10 @@ void TestCase_01(CircularBuffer* pBufA, CircularBuffer* pBufB)
 
 void TestCase_02(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
-  CircularBuffer* tmp = pBufB; 
+  TestCount += 1;
+  bool isTestPass = false;
+  uint8_t testBufA[] = {4, 5, 1, 2, 3};
+
   printf("\n");
   printf("%s - for BufMoveFast() where BuffA and BuffB has common address\n", __func__ );
 
@@ -312,7 +340,7 @@ void TestCase_02(CircularBuffer* pBufA, CircularBuffer* pBufB)
   printf("BufB addres:");
   printf("%p\n", (void*)pBufB);
 
-  pBufB = pBufA;
+  //pBufB = pBufA; //?
    
   printf("*** \n");
   size_t res = BufMoveFast(pBufB, pBufA);
@@ -330,17 +358,46 @@ void TestCase_02(CircularBuffer* pBufA, CircularBuffer* pBufB)
   printf("BufB addres:");
   printf("%p\n", (void*)pBufB);
 
-  printf("Restore addresses:\n");
-  pBufB = tmp; // or use const params
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufA); i++)
+  {
+    if (pBufA->data[i] == testBufA[i])
+    {
+      cnt ++;
+    }    
+  }
+  //printf("...%u\n", cnt);                       //tmp
+  //printf("...%zu\n", GetDataCount(pBufB));
+  //printf("...%zu\n", res);
+  //printf("...%u\n", pBufA == pBufB);
 
-  printf("BufA addres:");
-  printf("%p\n", (void*) &pBufA);
-  printf("BufB addres:");
-  printf("%p\n", (void*) &pBufB);
+  // Test conditions
+  if ((res == 0) and (pBufA == pBufB) and (cnt == GetDataCount(pBufB)))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }  
 }
 
 void TestCase_03(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
+  TestCount += 1;
+  bool isTestPass = false;
+  uint8_t testBufA[] = {8};
+  uint8_t testBufB[] = {1, 2, 3, 4, 5, 6, 7};
+
   printf("\n");
   printf("%s - for BufMoveFast() where destination buffer full\n", __func__ );
 
@@ -363,7 +420,7 @@ void TestCase_03(CircularBuffer* pBufA, CircularBuffer* pBufB)
   printf("BufB:");
   PrintBuffer(pBufB);
 
-  printf("Is BuffA full: %s\n", IsFull(&bufferA) ? "true" : "false");
+  printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
   printf("Is BuffB full: %s\n", IsFull(&bufferB) ? "true" : "false");
 
   printf("*** \n");
@@ -377,12 +434,44 @@ void TestCase_03(CircularBuffer* pBufA, CircularBuffer* pBufB)
   printf("BufB:");
   PrintBuffer(pBufB);
 
-  printf("Is BuffA full: %s\n", IsFull(&bufferA) ? "true" : "false");
+  printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
   printf("Is BuffB full: %s\n", IsFull(&bufferB) ? "true" : "false");
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }    
+  }
+
+  // Test conditions
+  if ((res == 0) and (!IsEmpty(&bufferA)) and (IsFull(&bufferB)) and (cnt == BUFFER_SIZE - 1) and (pBufA->data[0] == testBufA[0]))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }  
 }
 
 void TestCase_04(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
+  TestCount += 1;
+  bool isTestPass = false;
+  uint8_t testBufB[] = {1, 2, 3};
+
   printf("\n");
   printf("%s - for BufMoveFast() where source buffer empty\n", __func__ );
 
@@ -392,7 +481,7 @@ void TestCase_04(CircularBuffer* pBufA, CircularBuffer* pBufB)
   WriteByte(pBufB, 1);
   WriteByte(pBufB, 2);
   WriteByte(pBufB, 3);
-
+  
   printf("Before move:\n");
   printf("BufA:");
   PrintBuffer(pBufA);
@@ -415,10 +504,42 @@ void TestCase_04(CircularBuffer* pBufA, CircularBuffer* pBufB)
 
   printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
   printf("Is BuffB empty: %s\n", IsEmpty(&bufferB) ? "true" : "false");
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }    
+  }
+
+  // Test conditions
+  if ((res == 0) and (IsEmpty(&bufferA)) and (cnt == GetDataCount(pBufB)))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }
 }
 
 void TestCase_05(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
+  TestCount += 1;
+  bool isTestPass = false;
+  uint8_t testBufB[] = {3, 4, 5, 6, 1, 2};
+
   printf("\n");
   printf("%s - for BufMoveFast() WHERE source buffer less than destination\n", __func__ );
   printf(" AND source buffer not empty AND destination buffer not full\n");
@@ -450,10 +571,43 @@ void TestCase_05(CircularBuffer* pBufA, CircularBuffer* pBufB)
   PrintBuffer(pBufA);
   printf("BufB:");
   PrintBuffer(pBufB);
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }    
+  }
+  
+  // Test conditions
+  if ((res > 0) and (IsEmpty(&bufferA)) and (cnt == GetDataCount(pBufB)))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }
 }
 
 void TestCase_06(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
+  TestCount += 1;
+  bool isTestPass = false;
+  uint8_t testBufA[] = {3};
+  uint8_t testBufB[] = {4, 5, 6, 7, 8, 1, 2};
+
   printf("\n");
   printf("%s - for BufMoveFast() WHERE source buffer more than destination\n", __func__ );
   printf(" AND source buffer not empty AND destination buffer not full\n");
@@ -487,4 +641,142 @@ void TestCase_06(CircularBuffer* pBufA, CircularBuffer* pBufB)
   PrintBuffer(pBufA);
   printf("BufB:");
   PrintBuffer(pBufB);
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }    
+  }
+
+  // Test conditions
+  if ((res > 0) and (!IsEmpty(&bufferA)) and (IsFull(&bufferB)) and
+      (cnt == GetDataCount(pBufB)) and (pBufA->data[pBufA->first] == testBufA[0]))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }
+}
+
+void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
+{ 
+  TestCount += 1;
+  bool isTestPass = false;  
+  uint8_t testBufB[] = {5, 6, 1, 2, 3, 4};
+
+  printf("\n");
+  printf("%s - for BufMoveFast() WHERE source buffer less than destination\n", __func__ );
+  printf(" AND source buffer not empty AND destination buffer not full\n");
+  printf(" AND source buffer defragmented (index of first byte more then index of last byte)\n");
+  
+  ClearBuf(pBufA);
+  ClearBuf(pBufB);
+
+  //pBufA->last = 1;
+  
+  /*printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  printf("BufB first index: %zu \n", pBufB->first);
+  printf("BufB last index: %zu \n", pBufB->last);*/
+
+  WriteByte(pBufA, 0);
+  WriteByte(pBufA, 0);
+  WriteByte(pBufA, 0);
+  WriteByte(pBufA, 0);
+  WriteByte(pBufA, 0);
+  ReadByte(pBufA);
+  ReadByte(pBufA);
+  ReadByte(pBufA);
+  ReadByte(pBufA);
+  ReadByte(pBufA);
+  
+  //printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
+  //printf("BufA first index: %zu \n", pBufA->first);
+  //printf("BufA last index: %zu \n", pBufA->last);
+
+  WriteByte(pBufA, 1);
+  WriteByte(pBufA, 2);
+  WriteByte(pBufA, 3);
+  WriteByte(pBufA, 4);
+
+  //printf("BufA first index: %zu \n", pBufA->first);
+  //printf("BufA last index: %zu \n", pBufA->last);
+
+  WriteByte(pBufB, 5);
+  WriteByte(pBufB, 6);
+  
+  printf("Before move:\n");
+  printf("BufA:");
+  PrintBuffer(pBufA);
+  printf("BufB:");
+  PrintBuffer(pBufB);
+
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  printf("BufB first index: %zu \n", pBufB->first);
+  printf("BufB last index: %zu \n", pBufB->last);
+
+  printf("*** \n");
+  size_t res = BufMoveFast(pBufB, pBufA);
+  printf("BufMoveFast moved %zu item(s) from BufA to BufB\n", res);
+  printf("*** \n");
+
+  printf("After move:\n");
+  printf("BufA:");
+  PrintBuffer(pBufA);
+  printf("BufB:");
+  PrintBuffer(pBufB);
+
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  printf("BufB first index: %zu \n", pBufB->first);
+  printf("BufB last index: %zu \n", pBufB->last);
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }    
+  }
+
+  printf("cnt...%u\n", cnt);                       //tmp
+  printf("GetDataCount(pBufB)...%zu\n", GetDataCount(pBufB));
+  //printf("res...%zu\n", res); +
+  //printf("...%u\n", pBufA == pBufB);
+
+
+  // Test conditions
+  if ((res > 0) and (IsEmpty(&bufferA)) and (!IsFull(&bufferB)) and (cnt == GetDataCount(pBufB)))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }
 }
