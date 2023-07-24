@@ -5,6 +5,7 @@
 using namespace std;
 
 #define uint8_t unsigned char
+//#define debug
 
 // дан циклический (кольцевой) буфер и некоторые функции работы с ним
 #define BUFFER_SIZE 8
@@ -15,6 +16,7 @@ using namespace std;
 
 uint8_t TestCount = 0;
 uint8_t TestPassed = 0;
+uint8_t memcpyRunCounter = 0;
 
 typedef struct {
   size_t first;
@@ -26,6 +28,7 @@ typedef struct {
 // *** Local functions declaration
 // ***********************************************************
 size_t GetDataCount(CircularBuffer* pBuf);
+bool IsBuff_Fragmented(CircularBuffer* pBuf);
 
 // test func BufMoveSlow()
 void TestCase_01(CircularBuffer* pBufA, CircularBuffer* pBufB);
@@ -45,6 +48,11 @@ void ClearBuf(CircularBuffer* pBuf)
 {
   pBuf->first = 0;
   pBuf->last = 0;
+  
+  for (uint8_t i = 0; i < BUFFER_SIZE; i++)
+  {
+    pBuf->data[i] = 0;
+  }
 }
 
 // ReadByte читает байт из буфера.  если в буфере нет данных, возвращает -1.
@@ -91,11 +99,17 @@ size_t GetDataCount(CircularBuffer* pBuf)
 }
 
 // Get count of free bytes in selected buffer
-//  but not used yet
 size_t GetEmptyCount(CircularBuffer* pBuf)
 {
-  return (BUFFER_SIZE - GetDataCount(pBuf));
+  //return BUFFER_SIZE - GetDataCount(pBuf);
+  return ((BUFFER_SIZE - 1) - GetDataCount(pBuf)); //?
 }
+
+//
+bool IsBuff_Fragmented(CircularBuffer* pBuf)
+{
+   return pBuf->first > pBuf->last;
+};
 
 // нам нужна фукнция для перемещения данных из одного циклического буфера в другой
 // мы решили ее объявить так
@@ -140,7 +154,7 @@ size_t BufMoveFast(CircularBuffer* pDest, CircularBuffer* pSource)
   // желательно чтобы число вызовов memcpy не превышало кол-во непрерывных блоков данных, которые нужно скопировать
   // т.е чтобы число вызовов memcpy было минимально возможным.
   
-  // 
+  //
   if (pDest == pSource)
   {
     return 0;
@@ -154,26 +168,79 @@ size_t BufMoveFast(CircularBuffer* pDest, CircularBuffer* pSource)
   if (IsEmpty(pSource))
     return 0;
 
-  size_t count = 0; // init
-  if ((GetDataCount(pSource)) < (BUFFER_SIZE - GetDataCount(pDest)))
-  {
-    //
-    count = GetDataCount(pSource);
-    memcpy(pDest->data+pDest->last, pSource->data+pSource->first, count);
-    ClearBuf(pSource);
-    pDest->last += count; 
-    return count;
-  }
-  else
-  {
-    //
-    count = (BUFFER_SIZE - 1) - GetDataCount(pDest);
-    memcpy(pDest->data+pDest->last, pSource->data+pSource->first, count);
-    pDest->last += count;
-    pSource->first += count;
-    return count;
-  }
-  
+  size_t count = 0;
+  size_t cnt = 0;
+  bool isSourceFrag = true; //true;
+  //bool isDestFrag = true;
+
+  while (isSourceFrag)
+  {    
+    if (IsBuff_Fragmented(pSource))
+    {
+      cnt = BUFFER_SIZE - pSource->first; // find how bytes from first to end of address of buff 
+      isSourceFrag = true;
+      
+      #ifdef debug
+      printf("*** Source buff fragmented ***\n");
+      #endif
+    }
+    else
+    {
+      cnt = GetDataCount(pSource);
+      isSourceFrag = false;
+      
+      #ifdef debug
+      printf("*** Source buff NOT fragmented ***\n");
+      #endif
+    }    
+
+    bool isDestFrag = true;
+    while (isDestFrag)
+    {
+      if (IsBuff_Fragmented(pDest))
+      {
+        isDestFrag = true;
+        
+        #ifdef debug        
+        printf("*** Destination buff fragmented ***\n");
+        #endif
+      }
+      else
+      {
+        isDestFrag = false;
+
+        #ifdef debug
+        printf("*** Destination buff NOT fragmented ***\n");
+        #endif
+      }
+      
+      #ifdef debug
+      printf("cnt (1) = %zu\n", cnt);
+      #endif
+
+      if (cnt > GetEmptyCount(pDest))
+      {
+        cnt = GetEmptyCount(pDest); // -GetDataCount
+        isDestFrag = true;
+        
+        #ifdef debug
+        printf("cnt (2) = %zu\n", cnt);
+        #endif
+      }
+
+      memcpy(pDest->data+pDest->last, pSource->data+pSource->first, cnt);
+      memcpyRunCounter ++;
+      pDest->last = (pDest->last + cnt) & (BUFFER_SIZE - 1);
+      pSource->first = (pSource->first + cnt) & (BUFFER_SIZE - 1);
+      count += cnt;
+
+      #ifdef debug
+      printf("cnt (3) = %zu\n", cnt); // tmp
+      #endif      
+    };
+  };
+
+  return count;  
 }
 
 // вспомогательная функция для отладки
@@ -248,7 +315,8 @@ int main(){
         printf("GetDataCount B: %zu\n", GetDataCount(&bufferB));*/
 
         //
-        // TestCase_01(&bufferA, &bufferB);
+        //TestCase_01(&bufferA, &bufferB);
+        
         TestCase_02(&bufferA, &bufferA);
         TestCase_03(&bufferA, &bufferB);
         TestCase_04(&bufferA, &bufferB);
@@ -264,7 +332,7 @@ int main(){
 void PrintTestStatus()
 { 
   printf("\n***********************************\n"); 
-  printf("Tests count: %u \n", TestCount);
+  printf("Tests Count: %u \n", TestCount);
   printf("Tests PASS : %u \n", TestPassed);
   printf("Tests FAIL : %u \n", TestCount - TestPassed);
   printf("***********************************\n"); 
@@ -367,10 +435,6 @@ void TestCase_02(CircularBuffer* pBufA, CircularBuffer* pBufB)
       cnt ++;
     }    
   }
-  //printf("...%u\n", cnt);                       //tmp
-  //printf("...%zu\n", GetDataCount(pBufB));
-  //printf("...%zu\n", res);
-  //printf("...%u\n", pBufA == pBufB);
 
   // Test conditions
   if ((res == 0) and (pBufA == pBufB) and (cnt == GetDataCount(pBufB)))
@@ -676,7 +740,8 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
 { 
   TestCount += 1;
   bool isTestPass = false;  
-  uint8_t testBufB[] = {5, 6, 1, 2, 3, 4};
+  uint8_t testBufB[] = {6, 7, 1, 2, 3, 4, 5};
+  memcpyRunCounter = 0;
 
   printf("\n");
   printf("%s - for BufMoveFast() WHERE source buffer less than destination\n", __func__ );
@@ -685,13 +750,13 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
   
   ClearBuf(pBufA);
   ClearBuf(pBufB);
-
-  //pBufA->last = 1;
   
-  /*printf("BufA first index: %zu \n", pBufA->first);
+  #ifdef debug
+  printf("BufA first index: %zu \n", pBufA->first);
   printf("BufA last index: %zu \n", pBufA->last);
   printf("BufB first index: %zu \n", pBufB->first);
-  printf("BufB last index: %zu \n", pBufB->last);*/
+  printf("BufB last index: %zu \n", pBufB->last);
+  #endif
 
   WriteByte(pBufA, 0);
   WriteByte(pBufA, 0);
@@ -704,27 +769,32 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
   ReadByte(pBufA);
   ReadByte(pBufA);
   
-  //printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
-  //printf("BufA first index: %zu \n", pBufA->first);
-  //printf("BufA last index: %zu \n", pBufA->last);
+  #ifdef debug
+  printf("Is BuffA empty: %s\n", IsEmpty(&bufferA) ? "true" : "false");
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  #endif
 
   WriteByte(pBufA, 1);
   WriteByte(pBufA, 2);
   WriteByte(pBufA, 3);
   WriteByte(pBufA, 4);
+  WriteByte(pBufA, 5);
 
-  //printf("BufA first index: %zu \n", pBufA->first);
-  //printf("BufA last index: %zu \n", pBufA->last);
+  #ifdef debug
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  #endif
 
-  WriteByte(pBufB, 5);
   WriteByte(pBufB, 6);
+  WriteByte(pBufB, 7);
   
   printf("Before move:\n");
   printf("BufA:");
   PrintBuffer(pBufA);
   printf("BufB:");
   PrintBuffer(pBufB);
-
+  
   printf("BufA first index: %zu \n", pBufA->first);
   printf("BufA last index: %zu \n", pBufA->last);
   printf("BufB first index: %zu \n", pBufB->first);
@@ -741,6 +811,17 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
   printf("BufB:");
   PrintBuffer(pBufB);
 
+  #ifdef debug
+  printf("A[0] = %u B[0] = %u\n", pBufA->data[0], pBufB->data[0]);
+  printf("A[1] = %u B[1] = %u\n", pBufA->data[1], pBufB->data[1]);
+  printf("A[2] = %u B[2] = %u\n", pBufA->data[2], pBufB->data[2]);
+  printf("A[3] = %u B[3] = %u\n", pBufA->data[3], pBufB->data[3]);
+  printf("A[4] = %u B[4] = %u\n", pBufA->data[4], pBufB->data[4]);
+  printf("A[5] = %u B[5] = %u\n", pBufA->data[5], pBufB->data[5]);
+  printf("A[6] = %u B[6] = %u\n", pBufA->data[6], pBufB->data[6]);
+  printf("A[7] = %u B[7] = %u\n", pBufA->data[7], pBufB->data[7]);
+  #endif
+
   printf("BufA first index: %zu \n", pBufA->first);
   printf("BufA last index: %zu \n", pBufA->last);
   printf("BufB first index: %zu \n", pBufB->first);
@@ -753,21 +834,24 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
     if (pBufB->data[i] == testBufB[i])
     {
       cnt ++;
-    }    
+    }
   }
 
-  printf("cnt...%u\n", cnt);                       //tmp
+  #ifdef debug
+  printf("cnt...%u\n", cnt);
   printf("GetDataCount(pBufB)...%zu\n", GetDataCount(pBufB));
-  //printf("res...%zu\n", res); +
+  printf("res...%zu\n", res);
   //printf("...%u\n", pBufA == pBufB);
-
+  #endif
 
   // Test conditions
-  if ((res > 0) and (IsEmpty(&bufferA)) and (!IsFull(&bufferB)) and (cnt == GetDataCount(pBufB)))
+  if ((res > 0) and (IsEmpty(&bufferA)) and (IsFull(&bufferB)) and (cnt == GetDataCount(pBufB)))
   {
     isTestPass = true;
     TestPassed += 1;
   };
+
+  printf("*** memcpy() called %u times ***\n", memcpyRunCounter);
 
   // Test decision
   if (isTestPass)
