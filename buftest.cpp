@@ -347,7 +347,7 @@ void TestCase_02(CircularBuffer* pBufA, CircularBuffer* pBufB)
   memcpyRunCounter = 0;
 
   printf("\n");
-  printf("%s - for BufMoveFast() where BuffA and BuffB has common address\n", __func__ );
+  printf("%s - for BufMoveFast() WHERE: BuffA and BuffB has common address\n", __func__ );
 
   ClearBuf(pBufA);
   ClearBuf(pBufB);
@@ -428,7 +428,7 @@ void TestCase_03(CircularBuffer* pBufA, CircularBuffer* pBufB)
   memcpyRunCounter = 0;
 
   printf("\n");
-  printf("%s - for BufMoveFast() where destination buffer full\n", __func__ );
+  printf("%s - for BufMoveFast() WHERE: destination buffer full\n", __func__ );
 
   ClearBuf(pBufA);
   ClearBuf(pBufB);
@@ -505,7 +505,7 @@ void TestCase_04(CircularBuffer* pBufA, CircularBuffer* pBufB)
   memcpyRunCounter = 0;
 
   printf("\n");
-  printf("%s - for BufMoveFast() where source buffer empty\n", __func__ );
+  printf("%s - for BufMoveFast() WHERE: source buffer empty\n", __func__ );
 
   ClearBuf(pBufA);
   ClearBuf(pBufB);
@@ -648,8 +648,8 @@ void TestCase_06(CircularBuffer* pBufA, CircularBuffer* pBufB)
   memcpyRunCounter = 0;
 
   printf("\n");
-  printf("%s - for BufMoveFast() WHERE source buffer more than destination\n", __func__ );
-  printf(" AND source buffer not empty AND destination buffer not full\n");
+  printf("%s - for BufMoveFast() WHERE: source buffer more than destination\n", __func__ );
+  printf(" AND: source buffer not empty AND destination buffer not full\n");
   
   ClearBuf(pBufA);
   ClearBuf(pBufB);
@@ -1219,3 +1219,4 @@ void TestCase_10(CircularBuffer* pBufA, CircularBuffer* pBufB)
     printf("Test: *** FAIL ***\n");
   }
 }
+
