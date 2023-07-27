@@ -43,6 +43,7 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_08(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_09(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void TestCase_10(CircularBuffer* pBufA, CircularBuffer* pBufB);
+void TestCase_11(CircularBuffer* pBufA, CircularBuffer* pBufB);
 void PrintTestStatus();
 // ***********************************************************
 
@@ -217,23 +218,48 @@ size_t BufMoveFast(CircularBuffer* pDest, CircularBuffer* pSource)
         #endif
       }
       
+      if (!isSourceFrag)
+      {
+        cnt = GetDataCount(pSource); 
+      }
+
       #ifdef debug
-      printf("cnt (1) = %zu\n", cnt);
+      // want's to move, bytes:
+      printf("(#1) cnt = %zu\n", cnt);
       #endif
 
+      // if Source length data > Destination free space
       if (cnt > GetEmptyCount(pDest))
       {
         cnt = GetEmptyCount(pDest); // -GetDataCount
         isDestFrag = true;
         
         #ifdef debug
-        printf("cnt (2) = %zu\n", cnt);
+        // but will move no more, bytes:
+        printf("(#2) cnt = %zu\n", cnt);
         #endif
       }
       else
       {
         isDestFrag = false;
       }
+
+      // if Source length data > Destination free space to end of address
+      if (cnt > (BUFFER_SIZE - pDest->last))
+      {
+        cnt = BUFFER_SIZE  - pDest->last;
+        isDestFrag = true;
+      }
+      else
+      {
+        //cnt = GetDataCount(pSource);
+        isDestFrag = false; 
+      }
+
+      #ifdef debug
+      // but will move no more, bytes:
+      printf("(#2) cnt = %zu\n", cnt);
+      #endif
 
       if (cnt > 0)
       {
@@ -245,7 +271,8 @@ size_t BufMoveFast(CircularBuffer* pDest, CircularBuffer* pSource)
       }
 
       #ifdef debug
-      printf("cnt (3) = %zu\n", cnt); // tmp
+      // move in this itteration, bytes: 
+      printf("(#3) cnt = %zu\n", cnt); // tmp
       #endif      
     };
   };
@@ -284,6 +311,7 @@ int main(){
         TestCase_08(&bufferA, &bufferB);
         TestCase_09(&bufferA, &bufferB);
         TestCase_10(&bufferA, &bufferB);
+        TestCase_11(&bufferA, &bufferB);
 
         PrintTestStatus();
 
@@ -727,13 +755,6 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
   ClearBuf(pBufA);
   ClearBuf(pBufB);
   
-  #ifdef debug
-  printf("BufA first index: %zu \n", pBufA->first);
-  printf("BufA last index: %zu \n", pBufA->last);
-  printf("BufB first index: %zu \n", pBufB->first);
-  printf("BufB last index: %zu \n", pBufB->last);
-  #endif
-
   WriteByte(pBufA, 0);
   WriteByte(pBufA, 0);
   WriteByte(pBufA, 0);
@@ -756,11 +777,6 @@ void TestCase_07(CircularBuffer* pBufA, CircularBuffer* pBufB)
   WriteByte(pBufA, 3);
   WriteByte(pBufA, 4);
   WriteByte(pBufA, 5);
-
-  #ifdef debug
-  printf("BufA first index: %zu \n", pBufA->first);
-  printf("BufA last index: %zu \n", pBufA->last);
-  #endif
 
   WriteByte(pBufB, 6);
   WriteByte(pBufB, 7);
@@ -1220,3 +1236,107 @@ void TestCase_10(CircularBuffer* pBufA, CircularBuffer* pBufB)
   }
 }
 
+void TestCase_11(CircularBuffer* pBufA, CircularBuffer* pBufB)
+{
+  TestCount += 1;
+  bool isTestPass = false;    
+  uint8_t testBufB[] = {1, 5, 6, 7, 8, 9};
+  memcpyRunCounter = 0;
+
+  printf("\n");
+  printf("%s - for BufMoveFast() WHERE: destination buffer not fragmented before data mooving\n", __func__ );
+  printf(" AND: destination buffer fragmented after mooving data from source buffer \n");
+  
+  ClearBuf(pBufA);
+  ClearBuf(pBufB);
+
+  WriteByte(pBufA, 5);
+  WriteByte(pBufA, 6);
+  WriteByte(pBufA, 7);
+  WriteByte(pBufA, 8);
+  WriteByte(pBufA, 9);
+
+// work with buff B
+  for (int i = 0; i < BUFFER_SIZE - 2; i++) {
+    WriteByte(pBufB, 0);
+    ReadByte(pBufB);
+  }
+  
+  WriteByte(pBufB, 1);
+  // buf A - 5 6 7 8 9 
+  // buf B - 1
+
+  //  expected result: 1 5 6 7 8 9
+  printf("pBufA before move:");
+  PrintBuffer(pBufA);
+  printf("pBufB before move:");
+  PrintBuffer(pBufB);
+
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  printf("BufB first index: %zu \n", pBufB->first);
+  printf("BufB last index: %zu \n", pBufB->last);
+  printf("*** \n");
+
+  size_t res = BufMoveFast(pBufB, pBufA);
+  printf("BufMoveSlow moved %zu item(s) from pBufA to pBufB\n", res);
+  printf("*** \n");
+
+  printf("pBufA after move:");
+  PrintBuffer(pBufA);
+  printf("pBufB after move:");
+  PrintBuffer(pBufB);
+
+  #ifdef debug
+  printf("A[0] = %u B[0] = %u\n", pBufA->data[0], pBufB->data[0]);
+  printf("A[1] = %u B[1] = %u\n", pBufA->data[1], pBufB->data[1]);
+  printf("A[2] = %u B[2] = %u\n", pBufA->data[2], pBufB->data[2]);
+  printf("A[3] = %u B[3] = %u\n", pBufA->data[3], pBufB->data[3]);
+  printf("A[4] = %u B[4] = %u\n", pBufA->data[4], pBufB->data[4]);
+  printf("A[5] = %u B[5] = %u\n", pBufA->data[5], pBufB->data[5]);
+  printf("A[6] = %u B[6] = %u\n", pBufA->data[6], pBufB->data[6]);
+  printf("A[7] = %u B[7] = %u\n", pBufA->data[7], pBufB->data[7]);
+  #endif
+
+  printf("BufA first index: %zu \n", pBufA->first);
+  printf("BufA last index: %zu \n", pBufA->last);
+  printf("BufB first index: %zu \n", pBufB->first);
+  printf("BufB last index: %zu \n", pBufB->last);
+
+  // Test start
+  uint8_t cnt = 0;
+  for (uint8_t i = 0; i < GetDataCount(pBufB); i++)
+  {
+    if (pBufB->data[i] == testBufB[i])
+    {
+      cnt ++;
+    }
+  }
+
+  #ifdef debug
+  //printf("cnt...%u\n", cnt);
+  //printf("GetDataCount(pBufB)...%zu\n", GetDataCount(pBufB));
+  //printf("res...%zu\n", res);
+  //printf("...%u\n", pBufA == pBufB);
+  #endif
+
+  // Test conditions
+  if (res > 0 and IsEmpty(&bufferA) and !IsFull(&bufferB))
+  {
+    isTestPass = true;
+    TestPassed += 1;
+  };
+
+  printf("*** memcpy() called %u times ***\n", memcpyRunCounter);
+
+  // Test decision
+  if (isTestPass)
+  {    
+    printf("******************\n");
+    printf("Test: *** PASS ***\n");
+  }
+  else
+  {
+    printf("Test: *** FAIL ***\n");
+  }
+}
